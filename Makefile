@@ -1,23 +1,37 @@
 # Makefile for building the nethwv CLI tool
 
-# Binary name
+# Golang commands
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
+GOGET=$(GOCMD) get
+
+# binary
 BINARY_NAME=nethwv
 
-# Build directory
+# build directory
 BUILD_DIR=./build
 
-.PHONY: all build clean install run
+.PHONY: all build clean install run test deps
 
-all: build
+all: test build
 
 build:
 	@echo "Building..."
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) cmd/nethwv/main.go
+	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/nethwv/main.go
 
-clean:
+test: 
+	$(GOTEST) -v ./...
+
+clean: 
 	@echo "Cleaning..."
+	$(GOCLEAN)
 	@rm -rf $(BUILD_DIR)
+
+deps:
+	$(GOGET) ./...
 
 install: build
 	@echo "Installing..."

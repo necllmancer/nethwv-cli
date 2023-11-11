@@ -2,29 +2,34 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"nethwv-cli/pkg/github"
 	"nethwv-cli/pkg/pdf"
 	"os"
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: nethwv-cli <repo-url> <output-pdf>")
-		os.Exit(1)
+	args := os.Args
+	if len(args) < 3 {
+		// fmt.Println("Usage: nethwv-cli <repo-url> <output-pdf>")
+		// os.Exit(1)
+		args = []string{"", "psf/requests", "default.pdf"}
 	}
 
-	repoURL := os.Args[1]
-	outputPDF := os.Args[2]
+	repoURL, outputPDF := args[1], args[2]
 
-	// Retrieve files from GitHub repository
-	files, err := github.RetrieveFiles(repoURL)
+	// GitHubクライアントの初期化
+	client := github.NewClient(http.DefaultClient)
+
+	// GitHubリポジトリからファイルを取得
+	fileUrls, err := client.RetrieveFiles(repoURL)
 	if err != nil {
-		fmt.Printf("Error retrieving files: %s\n", err)
+		fmt.Printf("Error retrieving files from GitHub: %s\n", err)
 		os.Exit(1)
 	}
-
-	// Generate PDF
-	if err := pdf.GeneratePDF(files, outputPDF); err != nil {
+	fmt.Println("len(fileUrls) = ", len(fileUrls))
+	// PDFを生成
+	if err := pdf.GeneratePDF(fileUrls, outputPDF); err != nil {
 		fmt.Printf("Error generating PDF: %s\n", err)
 		os.Exit(1)
 	}
