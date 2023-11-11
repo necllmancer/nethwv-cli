@@ -1,3 +1,7 @@
 package pdf
 
-// ここにPDFファイル生成の関数を実装します。
+// Placeholder for PDF generation logic
+func GeneratePDF(files []string, output string) error {
+	// Implement the logic to convert the files into a single PDF document
+	return nil
+}
