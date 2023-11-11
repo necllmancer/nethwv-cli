@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch nethwv-cli",
+            "type": "go",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/nethwv/main.go",
+            "args": [], // 必要に応じてコマンドライン引数を追加
+            "env": {}, // 必要に応じて環境変数を設定
+            "envFile": "${workspaceFolder}/.env", // 環境変数ファイルがある場合
+        }
+    ]
+}
