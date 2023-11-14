@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"nethwv-cli/pkg/github"
 	"nethwv-cli/pkg/pdf"
@@ -9,24 +10,41 @@ import (
 )
 
 func main() {
-	args := os.Args
-	if len(args) < 3 {
-		args = []string{"", "psf/requests", "default.pdf"} // デフォルトの引数
+	// コマンドラインオプションの定義
+	branch := flag.String("b", "", "Branch to clone")
+	tag := flag.String("t", "", "Tag to clone")
+	directory := flag.String("d", "", "Specific directory to retrieve files from")
+	flag.Parse()
+
+	// 残りの引数からリポジトリと出力PDFファイル名を取得
+	args := flag.Args()
+	if len(args) < 2 {
+		fmt.Println("Usage: nethwv [options] <user/repo> <output.pdf>")
+		os.Exit(1)
 	}
 
-	repoURL, outputPDF := args[1], args[2]
+	repoURL, outputPDF := args[0], args[1]
 
 	client := github.NewClient(nil) // GitHubクライアントの初期化
 
-	// リポジトリをシャロークローン (--depth 1 を使用)
-	err := client.CloneRepo(repoURL, "tmp") // 一時ディレクトリにクローン
+	// リポジトリをクローン（ブランチまたはタグの指定がある場合はそれを使用）
+	branchOrTag := *branch
+	if *tag != "" {
+		branchOrTag = *tag
+	}
+	err := client.CloneRepo(repoURL, "tmp", branchOrTag) // 一時ディレクトリにクローン
 	if err != nil {
 		fmt.Printf("Error cloning repository: %s\n", err)
 		os.Exit(1)
 	}
 
-	// ファイルの一覧を取得
-	files, err := client.RetrieveFiles("tmp") // 一時ディレクトリからファイル一覧を取得
+	// 特定のディレクトリが指定されている場合はそのディレクトリのみからファイルを取得
+	var files []string
+	if *directory != "" {
+		files, err = client.RetrieveFiles("tmp", *directory)
+	} else {
+		files, err = client.RetrieveFiles("tmp", "")
+	}
 	if err != nil {
 		fmt.Printf("Error retrieving files: %s\n", err)
 		os.Exit(1)
