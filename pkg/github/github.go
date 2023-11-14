@@ -32,15 +32,25 @@ func NewClient(httpClient HttpClient) *Client {
 	}
 }
 
-func (c *Client) CloneRepo(orgAndRepository, localPath string) error {
+func (c *Client) CloneRepo(orgAndRepository, localPath, branchOrTag string) error {
 	repoURL := fmt.Sprintf("https://github.com/%s.git", orgAndRepository)
-	cmd := exec.Command("git", "clone", "--depth", "1", repoURL, localPath)
+	// ブランチまたはタグを指定するオプションを追加
+	args := []string{"clone", "--depth", "1"}
+	if branchOrTag != "" {
+		args = append(args, "-b", branchOrTag)
+	}
+	args = append(args, repoURL, localPath)
+	cmd := exec.Command("git", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func (c *Client) RetrieveFiles(localPath string) ([]string, error) {
+func (c *Client) RetrieveFiles(localPath, specificDirectory string) ([]string, error) {
+	// 特定のディレクトリが指定されている場合は、そのディレクトリからファイルを取得
+	if specificDirectory != "" {
+		return c.fetchFilesRecursively(localPath, specificDirectory)
+	}
 	return c.fetchFilesRecursively(localPath, "")
 }
 
