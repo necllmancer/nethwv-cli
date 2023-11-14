@@ -42,16 +42,6 @@ Or, to fetch files from a specific directory `src` in a repository:
 nethwv -d src psf/requests output.pdf
 ```
 
-## Downloading the README
-
-To download the README file:
-
-1. Visit the GitHub repository page at `https://github.com/necllmancer/nethwv-cli`.
-2. Navigate to the `README.md` file.
-3. Click on the file to view it.
-4. Click the "Raw" button to view the raw file.
-5. Right-click and choose "Save as" to download the file.
-
 ## Building from Source
 
 To build nethwv from source:
