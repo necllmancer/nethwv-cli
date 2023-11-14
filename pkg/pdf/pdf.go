@@ -7,26 +7,26 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
-func GeneratePDF(fileUrls []string, output string) error {
+func GeneratePDF(filePaths []string, output string) error {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetFont("Arial", "", 12)
 
-	for _, url := range fileUrls {
-		content, err := filefetcher.FetchFileContent(url)
+	for _, path := range filePaths {
+		content, err := filefetcher.FetchFileContent(path)
 		if err != nil {
-			fmt.Println("GeneratePDF error: ", err)
-			return err
+			fmt.Printf("Error reading file %s: %v\n", path, err)
+			continue // Skip this file and continue with the next
 		}
 		if content != "" {
 			pdf.AddPage()
-			pdf.SetXY(10, 10) // 設定テキスト開始位置
-			pdf.MultiCell(0, 10, url+"\n"+content, "", "", false)
+			pdf.SetXY(10, 10) // Set text start position
+			pdf.MultiCell(0, 10, fmt.Sprintf("File: %s\n\n%s", path, content), "", "", false)
 		}
 	}
 
 	err := pdf.OutputFileAndClose(output)
 	if err != nil {
-		fmt.Println("pdf.OutputFileAndClose(output)", err)
+		fmt.Printf("Error saving PDF: %v\n", err)
 		return err
 	}
 
