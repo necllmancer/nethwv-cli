@@ -1,6 +1,6 @@
 # nethwv-cli
 
-![image](https://github.com/necllmancer/nethwv-cli/assets/96694331/8b003a9a-8f44-4bc8-87ce-30a50b0b73bb)
+![image](https://github.com/necllmancer/nethwv-cli/assets/96694331/6f51a6d9-357e-467d-af08-0ab402833983)
 
 ## Overview
 Nether Weave CLI is a command-line interface tool that retrieves all files from a GitHub repository and compiles them into a single PDF document. Ideal for documenting projects, creating archives, or consolidating repository contents for easier review, it efficiently handles files across various directories in the repository.
