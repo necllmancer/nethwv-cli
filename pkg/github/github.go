@@ -1,10 +1,11 @@
 package github
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 )
 
 type GitHubFile struct {
@@ -31,50 +32,39 @@ func NewClient(httpClient HttpClient) *Client {
 	}
 }
 
-func (c *Client) RetrieveFiles(repoURL string) ([]string, error) {
-	return c.fetchFilesRecursively(repoURL, "")
+func (c *Client) CloneRepo(orgAndRepository, localPath string) error {
+	repoURL := fmt.Sprintf("https://github.com/%s.git", orgAndRepository)
+	cmd := exec.Command("git", "clone", "--depth", "1", repoURL, localPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
-func (c *Client) fetchFilesRecursively(repoURL, path string) ([]string, error) {
-	apiEndpoint := fmt.Sprintf("https://api.github.com/repos/%s/contents/%s", repoURL, path)
-	req, err := http.NewRequest("GET", apiEndpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	// HTTPリクエストを送信
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+func (c *Client) RetrieveFiles(localPath string) ([]string, error) {
+	return c.fetchFilesRecursively(localPath, "")
+}
 
-	body, err := ioutil.ReadAll(resp.Body)
+func (c *Client) fetchFilesRecursively(basePath, path string) ([]string, error) {
+	fullPath := filepath.Join(basePath, path)
+	files, err := os.ReadDir(fullPath)
 	if err != nil {
-		fmt.Println("ioutil.ReadAll(resp.Body)", err)
 		return nil, err
 	}
 
-	var files []GitHubFile
-	err = json.Unmarshal(body, &files)
-	if err != nil {
-		fmt.Println("json.Unmarshal(body, &files)", err, string(body))
-		return nil, err
-	}
-
-	var fileUrls []string
+	var fileFullPaths []string
 	for _, file := range files {
-		if file.Type == "file" {
-			fileUrls = append(fileUrls, file.Url)
-		} else if file.Type == "dir" {
-			subFiles, err := c.fetchFilesRecursively(repoURL, file.Path)
+		filePath := filepath.Join(path, file.Name())
+		fileFullPath := filepath.Join(basePath, filePath) // フルパスを生成
+		if file.IsDir() {
+			subFiles, err := c.fetchFilesRecursively(basePath, filePath)
 			if err != nil {
-				fmt.Println("c.fetchFilesRecursively(repoURL, file.Path)", err)
 				return nil, err
 			}
-			fileUrls = append(fileUrls, subFiles...)
+			fileFullPaths = append(fileFullPaths, subFiles...)
+		} else {
+			fileFullPaths = append(fileFullPaths, fileFullPath)
 		}
 	}
 
-	return fileUrls, nil
+	return fileFullPaths, nil
 }
