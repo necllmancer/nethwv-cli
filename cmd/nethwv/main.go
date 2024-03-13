@@ -23,22 +23,28 @@ func main() {
 	localPath := localCmd.String("p", "", "Path to local directory")
 
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: nethwv <command> [options]")
+		printUsage()
 		os.Exit(1)
 	}
 
 	switch os.Args[1] {
 	case "git":
-		handleGitCommand(gitCmd, branch, tag, directory)
+		ignore := gitCmd.String("i", "", "Comma-separated list of ignore patterns")
+		executeGitCommand(gitCmd, branch, tag, directory, ignore)
 	case "local":
-		handleLocalCommand(localCmd, localPath)
+		localIgnore := localCmd.String("i", "", "Comma-separated list of ignore patterns")
+		executeLocalCommand(localCmd, localPath, localIgnore)
 	default:
 		fmt.Printf("Unknown command: %s\n", os.Args[1])
 		os.Exit(1)
 	}
 }
 
-func handleGitCommand(gitCmd *flag.FlagSet, branch, tag, directory *string) {
+func printUsage() {
+	fmt.Println("Usage: nethwv <command> [options]")
+}
+
+func executeGitCommand(gitCmd *flag.FlagSet, branch, tag, directory *string, ignore *string) {
 	gitCmd.Parse(os.Args[2:])
 	args := gitCmd.Args()
 	if len(args) < 2 {
@@ -46,30 +52,24 @@ func handleGitCommand(gitCmd *flag.FlagSet, branch, tag, directory *string) {
 		os.Exit(1)
 	}
 
-	// Existing implementation for git subcommand
-	// コマンドラインオプションの定義
-	branch = flag.String("b", "", "Branch to clone")
-	tag = flag.String("t", "", "Tag to clone")
-	directory = flag.String("d", "", "Specific directory to retrieve files from")
-	flag.Parse()
+	repoURL := args[0]
+	outputPDF := args[1]
 
-	repoURL, outputPDF := args[0], args[1]
-
-	client := github.NewClient(nil) // GitHubクライアントの初期化
-
-	// リポジトリをクローン（ブランチまたはタグの指定がある場合はそれを使用）
-	branchOrTag := *branch
-	if *tag != "" {
-		branchOrTag = *tag
+	if err := createOutputDir(outputPDF); err != nil {
+		fmt.Printf("Error creating output directory: %s\n", err)
+		os.Exit(1)
 	}
-	err := client.CloneRepo(repoURL, "tmp", branchOrTag) // 一時ディレクトリにクローン
-	if err != nil {
+
+	client := github.NewClient(nil)
+
+	branchOrTag := resolveBranchOrTag(branch, tag)
+	if err := client.CloneRepo(repoURL, "tmp", branchOrTag); err != nil {
 		fmt.Printf("Error cloning repository: %s\n", err)
 		os.Exit(1)
 	}
 
-	// 特定のディレクトリが指定されている場合はそのディレクトリのみからファイルを取得
 	var files []string
+	var err error
 	if *directory != "" {
 		files, err = client.RetrieveFiles("tmp", *directory)
 	} else {
@@ -81,19 +81,25 @@ func handleGitCommand(gitCmd *flag.FlagSet, branch, tag, directory *string) {
 	}
 	fmt.Println("Number of files retrieved:", len(files))
 
-	// PDFを生成
-	if err := pdf.GeneratePDF(files, outputPDF); err != nil {
+	ignorePatterns := strings.Split(*ignore, ",")
+	if err := pdf.GeneratePDF(files, outputPDF, ignorePatterns); err != nil {
 		fmt.Printf("Error generating PDF: %s\n", err)
 		os.Exit(1)
 	}
 
 	fmt.Println("PDF generated successfully:", outputPDF)
 
-	// クリーンアップ: 一時ディレクトリを削除
 	os.RemoveAll("tmp")
 }
 
-func handleLocalCommand(localCmd *flag.FlagSet, localPath *string) {
+func resolveBranchOrTag(branch, tag *string) string {
+	if *tag != "" {
+		return *tag
+	}
+	return *branch
+}
+
+func executeLocalCommand(localCmd *flag.FlagSet, localPath *string, localIgnore *string) {
 	localCmd.Parse(os.Args[2:])
 	args := localCmd.Args()
 	if len(args) < 1 {
@@ -103,24 +109,43 @@ func handleLocalCommand(localCmd *flag.FlagSet, localPath *string) {
 
 	outputPDF := args[0]
 
-	// Validate local path
 	if *localPath == "" {
 		fmt.Println("Error: Local path is required")
 		os.Exit(1)
 	}
 
-	// Check if the output directory exists and create if not
-	outputDir := filepath.Dir(outputPDF)
-	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		err := os.MkdirAll(outputDir, os.ModePerm)
-		if err != nil {
-			fmt.Printf("Error creating output directory: %s\n", err)
-			os.Exit(1)
-		}
+	if err := createOutputDir(outputPDF); err != nil {
+		fmt.Printf("Error creating output directory: %s\n", err)
+		os.Exit(1)
 	}
 
+	files, err := retrieveFilesFromLocalPath(*localPath)
+	if err != nil {
+		fmt.Printf("Error retrieving files: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Number of files retrieved:", len(files))
+
+	ignorePatterns := strings.Split(*localIgnore, ",")
+	if err := pdf.GeneratePDF(files, outputPDF, ignorePatterns); err != nil {
+		fmt.Printf("Error generating PDF: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("PDF generated successfully:", outputPDF)
+}
+
+func createOutputDir(outputPDF string) error {
+	outputDir := filepath.Dir(outputPDF)
+	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
+		return os.MkdirAll(outputDir, os.ModePerm)
+	}
+	return nil
+}
+
+func retrieveFilesFromLocalPath(localPath string) ([]string, error) {
 	var files []string
-	err := filepath.Walk(*localPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -129,62 +154,5 @@ func handleLocalCommand(localCmd *flag.FlagSet, localPath *string) {
 		}
 		return nil
 	})
-	if err != nil {
-		fmt.Printf("Error retrieving files: %s\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("Number of files retrieved:", len(files))
-
-	// PDF generation
-	if err := pdf.GeneratePDF(files, outputPDF); err != nil {
-		fmt.Printf("Error generating PDF: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("PDF generated successfully:", outputPDF)
-}
-
-
-
-func printTree(path, indent string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	files, err := f.ReadDir(-1)
-	if err != nil {
-		return err
-	}
-
-	for i, file := range files {
-		filePath := filepath.Join(path, file.Name())
-		isLast := i == len(files)-1
-
-		fmt.Print(indent)
-		if isLast {
-			fmt.Print("└── ")
-		} else {
-			fmt.Print("├── ")
-		}
-
-		if file.IsDir() && file.Name() != ".git" {
-			fmt.Println(file.Name())
-			var newIndent string
-			if isLast {
-				newIndent = indent + "    "
-			} else {
-				newIndent = indent + "│   "
-			}
-			err := printTree(filePath, newIndent)
-			if err != nil {
-				return err
-			}
-		} else {
-			fmt.Println(file.Name())
-		}
-	}
-
-	return nil
+	return files, err
 }

@@ -18,52 +18,68 @@ To install `nethwv`, ensure you have Go installed on your machine and follow the
 3. Run `make install` to install the CLI tool.
 
 ## Usage
-The `nethwv` CLI tool supports two main commands: `git` for GitHub repositories and `local` for local directories.
 
-### Fetching and Compiling from GitHub Repositories
+### Git Subcommand
 
-```shell
-nethwv git [options] <user/repo> <output.pdf>
+The `git` subcommand allows you to generate a PDF from files in a GitHub repository.
+
+```
+Usage: nethwv git [options] <user/repo> <output.pdf>
+
+Options:
+  -b string
+        Branch to clone
+  -d string
+        Specific directory to retrieve files from
+  -t string
+        Tag to clone
 ```
 
-Options for `git` command:
-- `-b, --branch <branch-name>`: Specify a branch to clone.
-- `-t, --tag <tag-name>`: Specify a tag to clone.
-- `-d, --directory <directory-path>`: Fetch files from a specific directory in the repository.
-
-### Compiling from Local Directories
-
-```shell
-nethwv local -p <path> <output.pdf>
+Example usage:
+```
+nethwv git -b main -d docs octocat/Hello-World output.pdf
 ```
 
-Options for `local` command:
-- `-p, --path <local-path>`: Specify the path to the local directory.
+This command will clone the `main` branch of the `octocat/Hello-World` repository, retrieve files from the `docs` directory, and generate a PDF named `output.pdf`.
 
-### Examples
-To compile files from the master branch of the `psf/requests` GitHub repository into `output.pdf`:
+### Local Subcommand
 
-```shell
-nethwv git -b master psf/requests output.pdf
+The `local` subcommand allows you to generate a PDF from files in a local directory.
+
+```
+Usage: nethwv local -p <path> <output.pdf>
+
+Options:
+  -p string
+        Path to local directory
 ```
 
-To compile files from a specific directory `src` within the `psf/requests` repository:
-
-```shell
-nethwv git -d src psf/requests output.pdf
+Example usage:
+```
+nethwv local -p /path/to/local/directory output.pdf
 ```
 
-To compile files from a local directory `/path/to/files` into `output.pdf`:
+This command will retrieve files from the specified local directory (`/path/to/local/directory`) and generate a PDF named `output.pdf`.
 
-```shell
-nethwv local -p /path/to/files output.pdf
-```
+## Examples
 
-## Building from Source
-To build `nethwv` from source:
+Here are a few more examples of using nethwv-cli:
 
-1. Clone the repository.
-2. Navigate to the root directory of the project.
-3. Run `make build` to compile the binary. The binary will be located in the `./build` directory.
+1. Generate a PDF from a specific tag of a GitHub repository:
+   ```
+   nethwv git -t v1.0.0 octocat/Spoon-Knife spoon-knife.pdf
+   ```
 
-This updated README provides comprehensive instructions for both the `git` and `local` commands, including usage examples for each, to better guide users in utilizing the `nethwv-cli` tool effectively.
+2. Generate a PDF from a specific directory in a local path:
+   ```
+   nethwv local -p /home/user/documents/project project.pdf
+   ```
+
+3. Generate a PDF from the default branch of a GitHub repository:
+   ```
+   nethwv git octocat/Spoon-Knife spoon-knife.pdf
+   ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

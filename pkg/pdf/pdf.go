@@ -2,63 +2,65 @@ package pdf
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
-	"strings"
+
+	"nethwv-cli/pkg/filefetcher"
 
 	"github.com/jung-kurt/gofpdf"
-	"nethwv-cli/pkg/filefetcher"
 )
 
-func GeneratePDF(filePaths []string, outputDir string) error {
+func GeneratePDF(filePaths []string, outputPath string, ignorePatterns []string) error {
+	err := os.MkdirAll(filepath.Dir(outputPath), os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("Error creating output directory: %v", err)
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetFont("Arial", "", 12)
+
 	for _, path := range filePaths {
+		if isIgnored(path, ignorePatterns) {
+			continue
+		}
+
 		content, err := filefetcher.FetchFileContent(path)
 		if err != nil {
 			fmt.Printf("Error reading file %s: %v\n", path, err)
 			continue
 		}
+
 		if content != "" {
-			pdf := gofpdf.New("P", "mm", "A4", "")
-			pdf.SetFont("Arial", "", 12)
+			// 内容を最初の1000文字に制限する
+			if len(content) > 1000 {
+				content = content[:1000] + "..."
+			}
+
 			pdf.AddPage()
 			pdf.SetXY(10, 10)
-			pdf.MultiCell(0, 10, fmt.Sprintf("File: %s\n\n%s", path, content), "", "", false)
-
-			// Create a RAG-friendly filename with directory structure
-			filename := createRAGFriendlyFilenameWithDir(path, outputDir)
-			outputPath := filepath.Join(outputDir, filename)
-
-			err := pdf.OutputFileAndClose(outputPath)
-			if err != nil {
-				fmt.Printf("Error saving PDF %s: %v\n", outputPath, err)
-				return err
-			}
+			pdf.MultiCell(0, 10, fmt.Sprintf("File: %s\n\n%s", path, content), "", "LT", false)
 		}
+	}
+
+	err = pdf.OutputFileAndClose(outputPath)
+	if err != nil {
+		fmt.Printf("Error saving PDF %s: %v\n", outputPath, err)
+		return err
 	}
 
 	return nil
 }
 
-// createRAGFriendlyFilenameWithDir generates a filename that includes the directory structure.
-func createRAGFriendlyFilenameWithDir(path, baseDir string) string {
-	relativePath, err := filepath.Rel(baseDir, path)
-	if err != nil {
-		// If unable to get relative path, use the base name
-		return filepath.Base(path)
+func isIgnored(path string, ignorePatterns []string) bool {
+	for _, pattern := range ignorePatterns {
+		matched, err := filepath.Match(pattern, path)
+		if err != nil {
+			fmt.Printf("Invalid ignore pattern: %s\n", pattern)
+			continue
+		}
+		if matched {
+			return true
+		}
 	}
-
-	// Remove "../" or "./" from the beginning of the relative path
-	relativePath = strings.TrimPrefix(relativePath, "../")
-	relativePath = strings.TrimPrefix(relativePath, "./")
-
-	name := strings.TrimSuffix(relativePath, filepath.Ext(relativePath))
-	name = strings.ReplaceAll(name, string(filepath.Separator), "_")
-	return fmt.Sprintf("%s.pdf", name)
-}
-
-
-// createRAGFriendlyFilename generates a filename that is optimized for RAG.
-func createRAGFriendlyFilename(path string) string {
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	return fmt.Sprintf("%s_RAG.pdf", name)
+	return false
 }
